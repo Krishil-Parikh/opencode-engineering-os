@@ -1,0 +1,49 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+
+  // architect is the front door now, instead of the built-in "build" agent.
+  "default_agent": "architect",
+
+  // architect -> builder -> test-engineer is 2 levels of subagent nesting.
+  // Only raise this if you deliberately add another layer of delegation --
+  // it's the main lever against runaway agent fan-out.
+  "experimental": {
+    "subagent_depth": 2,
+  },
+
+  // Global safety net, applied to every agent before its own permissions.
+  // NOTE: an agent's own broader "allow *" rule can still out-rank a rule
+  // here, since permission matching is "last matching rule wins" across the
+  // merged list, and agent-specific rules are merged in after these. The
+  // agents that actually carry shell/edit access (builder, test-engineer,
+  // validator, auditor) repeat the relevant denies at the end of their own
+  // permissions block for that reason -- see their files in agents/. Treat
+  // this block as the documented default plus a backstop for any agent you
+  // add later that doesn't repeat its own guards.
+  "permissions": [
+    { "action": "shell", "resource": "*", "effect": "allow" },
+    { "action": "shell", "resource": "rm -rf *", "effect": "deny" },
+    { "action": "shell", "resource": "git push *", "effect": "ask" },
+    { "action": "shell", "resource": "git push --force*", "effect": "deny" },
+    { "action": "edit", "resource": "*.env*", "effect": "deny" },
+    { "action": "edit", "resource": "*.pem", "effect": "deny" },
+    { "action": "edit", "resource": "*secret*", "effect": "ask" },
+  ],
+
+  // Model tiering. Swap these `provider/model` strings for whatever you
+  // actually have configured -- check OpenCode's Models docs or your
+  // provider dashboard for the exact IDs available to you. What matters is
+  // the TIER: architect, deep-thinker, and auditor want your best reasoning
+  // model; builder and test-engineer want your best coding model; validator
+  // just runs commands, so point it at your fastest/cheapest one.
+  "agents": {
+    "architect":     { "model": "anthropic/claude-sonnet-4-5#high" },
+    "deep-thinker":  { "model": "anthropic/claude-sonnet-4-5#high" },
+    "auditor":       { "model": "anthropic/claude-sonnet-4-5#high" },
+    "decomposer":    { "model": "anthropic/claude-sonnet-4-5" },
+    "reviewer":      { "model": "anthropic/claude-sonnet-4-5" },
+    "builder":       { "model": "anthropic/claude-sonnet-4-5" },
+    "test-engineer": { "model": "anthropic/claude-sonnet-4-5" },
+    "validator":     { "model": "anthropic/claude-sonnet-4-5" },
+  },
+}
